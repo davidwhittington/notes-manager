@@ -1,0 +1,19 @@
+# Personal config — never commit
+.env
+private/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# macOS
+.DS_Store
+
+# Output files (local only)
+exports/
