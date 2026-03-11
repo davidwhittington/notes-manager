@@ -4,6 +4,16 @@ A Python CLI for auditing and reorganizing Apple Notes. Export your library, sca
 
 Built for anyone with years of accumulated notes who needs to systematically sort the useful from the noise without doing it manually one note at a time.
 
+## AI integration
+
+Two commands use the Claude API (Anthropic):
+
+**`triage --auto`** — feeds each candidate note to Claude Haiku, which reads the title and body and returns a verdict with a reason. Useful for burning through a large backlog without sitting at a terminal. Use `--dry-run` first to preview before writing.
+
+**`execute` with extract verdict** — when a note is marked for extraction during triage, the execute step calls Claude Haiku to distill the useful idea into a clean, concise note. That summary lands in `Drafts`; the original gets archived. No more manually rewriting notes that are 90% noise.
+
+Both require `ANTHROPIC_API_KEY` set in your environment or `.env`. All other commands run without it.
+
 ## Current status
 
 Phase 1 — active development. Full pipeline (export → scan → triage → execute) is working. Not yet packaged for distribution.
