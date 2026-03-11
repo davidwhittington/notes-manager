@@ -4,7 +4,15 @@ from collections import Counter
 
 from .config import CANDIDATES_CSV, TRIAGE_LOG
 
-VERDICT_ORDER = ["archive", "promote", "extract", "review"]
+VERDICT_ORDER = [
+    "promote-work",
+    "promote-personal",
+    "archive-fortinet",
+    "archive-personal",
+    "extract",
+    "review",
+    "discard",
+]
 
 
 def show_status() -> None:
@@ -48,11 +56,11 @@ def show_status() -> None:
             print(f"  {verdict:<10} {count:4d}")
         print()
 
-    # List promotes and extracts so David can see what's graduating
-    graduating = [r for r in log_rows if r.get("verdict") in ("promote", "extract")]
-    if graduating:
-        print("Notes graduating (promote / extract):")
-        for r in graduating:
+    # List active and extract notes so David can see what's moving
+    active = [r for r in log_rows if r.get("verdict") in ("promote-work", "promote-personal", "extract")]
+    if active:
+        print("Notes moving to active / drafts:")
+        for r in active:
             label = r["verdict"].upper()
             title = r.get("title", "(untitled)")
             print(f"  [{label}]  {title}")

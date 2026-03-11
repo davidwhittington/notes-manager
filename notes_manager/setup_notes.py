@@ -37,5 +37,5 @@ def run_setup() -> None:
 
     print("Setup complete.")
     print("Folders created: INBOX, Active - Work, Active - Personal, Drafts,")
-    print("                 Archive - Fortinet, Archive - General, Templates")
+    print("                 Archive - Fortinet, Archive - Personal, Archive - General, Templates")
     print("Templates installed: Account Note, Idea Capture, Meeting Note, Project Note")

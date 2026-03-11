@@ -53,6 +53,14 @@ def status():
 
 
 @main.command()
+@click.option("--dry-run", is_flag=True, default=False, help="Preview actions without touching Notes.")
+def execute(dry_run):
+    """Move notes in Apple Notes based on triage verdicts."""
+    from .execute import run_execute
+    run_execute(dry_run=dry_run)
+
+
+@main.command()
 def setup():
     """Create target folder structure and install templates in Apple Notes."""
     from .setup_notes import run_setup

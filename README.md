@@ -1,16 +1,18 @@
 # notes-manager
 
-A Python CLI for auditing and reorganizing Apple Notes. Built for people with years of accumulated notes who need to systematically find, triage, and graduate the ones worth keeping.
+A Python CLI for auditing and reorganizing Apple Notes. Export your library, scan for keywords, triage each candidate, then execute — moving notes directly into the right folders in Apple Notes.
+
+Built for anyone with years of accumulated notes who needs to systematically sort the useful from the noise without doing it manually one note at a time.
 
 ## Current status
 
-Phase 1 — active development. Core CLI pipeline (export, scan, triage, status) is working. Not yet packaged for distribution.
+Phase 1 — active development. Full pipeline (export → scan → triage → execute) is working. Not yet packaged for distribution.
 
 ## Requirements
 
 - macOS (Apple Notes via AppleScript)
 - Python 3.10+
-- Anthropic API key (only required for `--auto` triage)
+- Anthropic API key (required for `--auto` triage and `extract` verdicts)
 
 ## Installation
 
@@ -30,15 +32,31 @@ notes-manager uses a `.env` file for personal keywords. This keeps your contacts
 cp .env.example .env
 ```
 
-Edit `.env` and fill in:
+Edit `.env` and fill in your keyword buckets:
 
 ```
+# Extra terms beyond any default product keywords
 NM_EXTRA_KEYWORDS=your,custom,terms
+
+# People names to scan for
 NM_PEOPLE=first last,first last
+
+# Company or account names to scan for
 NM_ACCOUNTS=company name,another company
+
+# Current employer keywords (used for Active-Work routing)
+NM_ISLAND_KEYWORDS=your company,product name
+NM_ISLAND_PEOPLE=colleague name,colleague name
+NM_ISLAND_ACCOUNTS=key account
+
+# Date cutoff for Active-Work routing (notes must be on or after this date)
+NM_ACTIVE_WORK_CUTOFF=2025-09-01
+
+# Personal project names (used for Active-Personal routing)
+NM_PERSONAL_PROJECTS=project-one,project-two
 ```
 
-If you have an Anthropic API key for AI-powered triage, either export it in your shell or add it to `.env`:
+If you have an Anthropic API key for AI-powered triage and extract summaries:
 
 ```
 ANTHROPIC_API_KEY=sk-ant-...
@@ -46,18 +64,10 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 ## Usage
 
-### Full pipeline (recommended first run)
-
-```bash
-./run.sh pipeline
-```
-
-Runs: export → scan → triage (auto) → status in sequence.
-
 ### Step by step
 
 ```bash
-# 1. Create target folder structure in Apple Notes
+# 1. Create the target folder structure in Apple Notes
 ./run.sh setup
 
 # 2. Export all notes to ~/Desktop/NotesExport/
@@ -66,55 +76,108 @@ Runs: export → scan → triage (auto) → status in sequence.
 # 3. Scan exported notes for your keywords
 ./run.sh scan
 
-# 4. Preview AI triage verdicts without writing
-./run.sh triage --auto --dry-run
+# 4. Or scan Apple Notes SQLite directly (no export needed, less content available)
+./run.sh scan --direct
 
-# 5. Run triage for real
-./run.sh triage --auto
-
-# 6. Or triage interactively (no API key needed)
+# 5. Triage interactively (no API key needed)
 ./run.sh triage
 
-# 7. Check progress
+# 6. Or triage with Claude (preview first, then for real)
+./run.sh triage --auto --dry-run
+./run.sh triage --auto
+
+# 7. Preview what execute will do before touching Notes
+./run.sh execute --dry-run
+
+# 8. Execute — moves notes into their target folders in Apple Notes
+./run.sh execute
+
+# 9. Check progress at any point
 ./run.sh status
 ```
 
 ### Triage verdicts
 
-| Verdict | Meaning |
-|---|---|
-| `archive` | No enduring value. Move to archive folder. |
-| `promote` | Transferable idea worth keeping as a real doc. |
-| `extract` | One good idea buried in noise. Pull it out. |
-| `review` | Mixed — needs a human pass. |
+During triage, each candidate note is shown with a content preview. Press one key to assign a verdict.
 
-### Direct SQLite scan (no export needed)
+| Key | Verdict | Destination |
+|-----|---------|-------------|
+| `w` | Promote — Work | `Active – Work` |
+| `p` | Promote — Personal | `Active – Personal` |
+| `f` | Archive — Fortinet | `Archive – Fortinet` + header stamped |
+| `a` | Archive — Personal | `Archive – Personal` + header stamped |
+| `e` | Extract | Gem → new note in `Drafts` (Claude writes clean summary), original archived |
+| `r` | Review | `INBOX` — needs a manual pass |
+| `d` | Discard | Deleted |
+| `s` | Skip | Leave untouched for now |
+| `q` | Quit | Save progress and exit |
 
-```bash
-./run.sh scan --direct
+**Active-Work routing** checks two criteria: the note must match current-employer keywords and have a creation or modification date on or after `NM_ACTIVE_WORK_CUTOFF`. If either condition isn't met, execute warns but moves the note anyway since you made the call during triage.
+
+**Extract** uses Claude (Haiku) to distill the useful idea into a clean new note in `Drafts`, then archives the original.
+
+### Archive header
+
+Notes routed to any archive folder get a header stamped at the top:
+
+```
+────────────────────────────
+ARCHIVED: 2025-11-04
+Source: Fortinet era (2011–2024)
+────────────────────────────
 ```
 
-Reads Apple Notes database directly. Faster, but no note body content available for triage.
+### Target folder structure
+
+`./run.sh setup` creates these folders in Apple Notes if they don't already exist:
+
+```
+INBOX               ← review verdicts land here
+Active – Work       ← current job, active accounts
+Active – Personal   ← personal projects
+Drafts              ← extracted gems, ideas in progress
+Archive – Fortinet  ← former employer notes
+Archive – Personal  ← old personal notes worth keeping
+Archive – General   ← everything else
+Templates
+```
+
+### Output files
+
+All output lands on `~/Desktop/`:
+
+| File | Contents |
+|------|----------|
+| `NotesExport/` | Exported notes as `.txt` files, organized by folder |
+| `fortinet_candidates.csv` | Notes that matched your keywords, with triage verdict column |
+| `fortinet_scan_summary.txt` | Breakdown by folder and keyword |
+| `fortinet_triage_log.csv` | Triage decisions with timestamp and reason |
+| `fortinet_execute_log.csv` | Execute results — what moved where, errors if any |
 
 ## Repo layout
 
 ```
 notes-manager/
-├── notes_manager/          — Python package
-│   ├── cli.py              — Click CLI entry point
-│   ├── config.py           — paths and keyword loading (.env)
-│   ├── export.py           — wraps export_notes.applescript
-│   ├── scan.py             — keyword scanner (file-based + SQLite)
-│   ├── triage.py           — interactive and AI-powered triage
-│   ├── setup_notes.py      — creates folder structure in Notes
-│   └── status.py           — progress summary
+├── notes_manager/              — Python package
+│   ├── cli.py                  — Click CLI entry point
+│   ├── config.py               — paths and keyword loading (.env)
+│   ├── export.py               — wraps export_notes.applescript
+│   ├── scan.py                 — keyword scanner (file-based + SQLite)
+│   ├── triage.py               — interactive and AI-powered triage
+│   ├── execute.py              — moves notes in Apple Notes per triage verdicts
+│   ├── setup_notes.py          — creates folder structure in Notes
+│   └── status.py               — progress summary
 ├── scripts/
 │   ├── export_notes.applescript
-│   ├── grep_fortinet_notes.sh
 │   ├── create_folder_structure.applescript
-│   └── install_templates.applescript
-├── commands/               — Claude Code command definitions
-├── .env.example            — config template (copy to .env)
+│   ├── install_templates.applescript
+│   ├── move_note.applescript
+│   ├── archive_note.applescript
+│   ├── create_note.applescript
+│   ├── delete_note.applescript
+│   └── grep_fortinet_notes.sh  — standalone bash alternative to nm scan
+├── commands/                   — Claude Code command definitions
+├── .env.example                — config template (copy to .env)
 ├── requirements.txt
 └── run.sh
 ```

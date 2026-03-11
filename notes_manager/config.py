@@ -14,6 +14,7 @@ EXPORT_DIR = HOME / "Desktop" / "NotesExport"
 CANDIDATES_CSV = HOME / "Desktop" / "fortinet_candidates.csv"
 SCAN_SUMMARY = HOME / "Desktop" / "fortinet_scan_summary.txt"
 TRIAGE_LOG = HOME / "Desktop" / "fortinet_triage_log.csv"
+EXECUTE_LOG = HOME / "Desktop" / "fortinet_execute_log.csv"
 SQLITE_PATH = (
     HOME
     / "Library"
@@ -48,17 +49,26 @@ def _parse_env_list(var: str) -> list[str]:
     return [item.strip().lower() for item in raw.split(",") if item.strip()]
 
 
-# ── Configurable via .env ─────────────────────────────────────────────────────
-# NM_EXTRA_KEYWORDS — additional terms beyond the default product list
-# NM_PEOPLE         — people names to search for
-# NM_ACCOUNTS       — company/account names to search for
-
+# ── Fortinet keywords (configurable via .env) ─────────────────────────────────
 EXTRA_KEYWORDS: list[str] = _parse_env_list("NM_EXTRA_KEYWORDS")
 PEOPLE: list[str] = _parse_env_list("NM_PEOPLE")
 ACCOUNTS: list[str] = _parse_env_list("NM_ACCOUNTS")
 
 PRODUCT_KEYWORDS: list[str] = _DEFAULT_PRODUCT_KEYWORDS + EXTRA_KEYWORDS
 ALL_KEYWORDS: list[str] = PRODUCT_KEYWORDS + PEOPLE + ACCOUNTS
+
+# ── Island keywords (current employer — Active Work routing) ──────────────────
+ISLAND_KEYWORDS: list[str] = _parse_env_list("NM_ISLAND_KEYWORDS")
+ISLAND_PEOPLE: list[str] = _parse_env_list("NM_ISLAND_PEOPLE")
+ISLAND_ACCOUNTS: list[str] = _parse_env_list("NM_ISLAND_ACCOUNTS")
+ALL_ISLAND: list[str] = ISLAND_KEYWORDS + ISLAND_PEOPLE + ISLAND_ACCOUNTS
+
+# ── Active Work date cutoff ───────────────────────────────────────────────────
+# Notes must be created or modified on or after this date to qualify for Active – Work
+ACTIVE_WORK_CUTOFF: str = os.environ.get("NM_ACTIVE_WORK_CUTOFF", "2025-09-01")
+
+# ── Personal GitHub project names (Active Personal routing) ──────────────────
+PERSONAL_PROJECTS: list[str] = _parse_env_list("NM_PERSONAL_PROJECTS")
 
 
 def validate() -> None:

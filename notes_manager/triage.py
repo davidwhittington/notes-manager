@@ -8,24 +8,37 @@ from pathlib import Path
 
 from .config import CANDIDATES_CSV, TRIAGE_LOG
 
-VERDICTS = {"a": "archive", "p": "promote", "e": "extract", "r": "review"}
+VERDICTS = {
+    "w": "promote-work",
+    "p": "promote-personal",
+    "f": "archive-fortinet",
+    "a": "archive-personal",
+    "e": "extract",
+    "r": "review",
+    "d": "discard",
+}
 TRIAGE_LOG_HEADER = ["timestamp", "title", "file_path", "verdict", "reason"]
 
 SYSTEM_PROMPT = """\
-You are a triage assistant helping a former Fortinet employee audit thousands of old notes.
+You are a triage assistant helping a former Fortinet employee (2011-2024) audit thousands of old notes.
+He now works at Island (enterprise browser company) since late 2025.
 
 Classify each note using exactly one of these verdicts:
-- archive   — Fortinet-specific content with no enduring value (org charts, meeting logistics,
-              account maps, names with no transferable ideas, product-specific ops).
-              Default lean for anything that's just a record of something that happened.
-- promote   — Contains a framework, strategy, or insight that transfers to current work.
-              Worth turning into a real doc. Should be immediately useful or instructive today.
-- extract   — Has 1-2 specific ideas buried in noise. The container is junk but there's a gem.
-              Pull the gem, trash the container.
-- review    — Genuinely unclear — mixed signal, could go either way.
+- promote-work     — Island-related content created/relevant after September 2025. Active work.
+- promote-personal — Tied to personal projects (retro computing, hardware, personal GitHub repos).
+- archive-fortinet — Fortinet-era content with no enduring value. Default for anything that's
+                     just a record of something that happened at Fortinet.
+- archive-personal — Old personal content worth keeping but not active.
+- extract          — One useful idea buried in noise. The container is junk but there's a gem.
+- review           — Genuinely unclear — mixed signal, needs a human look.
+- discard          — Pure garbage: dead links, one-liners, logistical noise, meeting logistics
+                     with no insight.
+
+Lean toward archive-fortinet for Fortinet-era content. Only use promote-work if the note
+clearly relates to Island or post-Sept-2025 work.
 
 Respond ONLY with valid JSON in this exact shape:
-{"verdict": "<archive|promote|extract|review>", "reason": "<1-2 sentences>"}
+{"verdict": "<promote-work|promote-personal|archive-fortinet|archive-personal|extract|review|discard>", "reason": "<1-2 sentences>"}
 """
 
 
@@ -88,7 +101,9 @@ def _print_note_card(row: dict) -> None:
 
 
 def _prompt_verdict() -> str:
-    prompt = "[a]rchive  [p]romote  [e]xtract  [r]eview  [s]kip  [q]uit > "
+    print("  [w] Active-Work   [p] Active-Personal   [f] Archive-Fortinet   [a] Archive-Personal")
+    print("  [e] Extract       [r] Review             [d] Discard            [s] Skip   [q] Quit")
+    prompt = "  > "
     while True:
         try:
             choice = input(prompt).strip().lower()
@@ -101,7 +116,7 @@ def _prompt_verdict() -> str:
             return "skip"
         if choice == "q":
             return "quit"
-        print("  Invalid choice. Enter a, p, e, r, s, or q.")
+        print("  Invalid. Enter w, p, f, a, e, r, d, s, or q.")
 
 
 # ── Auto triage (Claude API) ─────────────────────────────────────────────────

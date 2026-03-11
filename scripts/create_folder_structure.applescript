@@ -4,7 +4,7 @@
 -- Safe to run — only creates folders that don't exist
 -- ============================================================
 
-set targetFolders to {"INBOX", "Active – Work", "Active – Personal", "Drafts", "Archive – Fortinet", "Archive – General", "Templates"}
+set targetFolders to {"INBOX", "Active – Work", "Active – Personal", "Drafts", "Archive – Fortinet", "Archive – Personal", "Archive – General", "Templates"}
 
 tell application "Notes"
 	-- Use the default iCloud account
